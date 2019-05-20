@@ -1,10 +1,13 @@
 import json
 
+import aioredis
+from aioredis.util import _converters
+
 from microservice.middleware.objects import BasicObject
 
 
 class RedisCache:
-    def __init__(self, redis_connection):
+    def __init__(self, redis_connection: aioredis.Redis):
         self.redis = redis_connection
 
     async def store_request(self, request_hash, expire, value):
@@ -55,11 +58,11 @@ class RedisCache:
         Restore object from redis
         :param key:
         :param object_class:
-        :return: BascicObject
+        :return: object_class()
         """
         value = await self.redis.get(key)
         if value:
-            o = BasicObject.from_json(value)
+            o = object_class.from_json(value)
         else:
             o = None
         return o
@@ -71,8 +74,63 @@ class RedisCache:
         keys = await self.redis.keys("{}*".format(prefix))
         items = []
         if keys:
-            items = [BasicObject.from_json(x) for x in await self.redis.mget(*keys)]
+            items = [BasicObject.from_json(x) if x is not None else x for x in await self.redis.mget(*keys)]
         return items
 
     async def delete(self, key):
         await self.redis.delete(key)
+
+    async def sadd(self, key, value, *values):
+        """
+        Add one or more members to a set
+        :param key:
+        :param value:
+        :return: number of added elements
+        """
+        if isinstance(value, tuple(_converters.keys())):
+            def dumper(x): return x
+        else:
+            dumper = json.dumps
+        return await self.redis.sadd(key, dumper(value), *[dumper(v) for v in values])
+
+    async def spop(self, key):
+        """
+        Remove and return a random member from a set
+        :param key:
+        :return: any
+        """
+        item = await self.redis.spop(key, encoding="utf-8")
+        return json.loads(item) if item is not None else item
+
+    async def sstore(self, key, o=None):
+        """
+        Store BasicObject to redis set (json'ed)
+        :param key:
+        :param o: BasicObject
+        :return: number of added elements
+        """
+        if o:
+            data = o.json()
+        else:
+            data = json.dumps(o)
+        return await self.sadd(key, data)
+
+    async def srestore(self, key, object_class=BasicObject):
+        """
+        Remove and return `object_class` from redis set
+        :param key:
+        :param object_class:
+        :return: object_class()
+        """
+        value = await self.spop(key)
+        if value:
+            o = object_class(item_dict=value)
+        else:
+            o = None
+        return o
+
+    def close(self):
+        self.redis.close()
+
+    async def wait_closed(self):
+        await self.redis.wait_closed()
