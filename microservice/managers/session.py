@@ -14,7 +14,7 @@ class SessionManager(DataManager):
     user_id_key = "id"
     model = Session
 
-    async def create(self, user, user_agent, network=None, push_token=None, ip=None, location=None):
+    async def create(self, user, user_agent, network=None, push_token=None, ip=None, location=None, defaults=None):
         ua_data = user_agent_parser.Parse(user_agent)
         os = ua_data["os"]["family"]
         client = ua_data["user_agent"]["family"]
@@ -33,7 +33,8 @@ class SessionManager(DataManager):
                 token=self._generate_token(user[self.user_id_key], os, client, rand),
                 expire=datetime.now() + timedelta(days=cfg.app.session_lifetime),
                 ip=ip,
-                location=location
+                location=location,
+                **(defaults or {})
             )
         )
         session_obj.ip = ip
