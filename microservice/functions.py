@@ -5,6 +5,8 @@ import platform
 import socket
 from email.mime.text import MIMEText
 from hashlib import md5
+from multiprocessing import Lock
+from multiprocessing.sharedctypes import RawValue
 from smtplib import SMTP_SSL, SMTP
 from time import perf_counter as pc
 
@@ -220,3 +222,21 @@ class Timer:
         logging.debug("Step {} {}: {:.3f} from prev step, {:.3f} from start".format(self.counter, step, from_prev*1000, from_start*1000))
         self.mark = pc()
         self.counter += 1
+
+
+class Counter(object):
+    """ atomic shared counter """
+    def __init__(self, value=0):
+        # RawValue because we don't need it to create a Lock:
+        self.val = RawValue('i', value)
+        self.lock = Lock()
+
+    def inc(self):
+        with self.lock:
+            self.val.value += 1
+
+    def value(self):
+        with self.lock:
+            return self.val.value
+
+
