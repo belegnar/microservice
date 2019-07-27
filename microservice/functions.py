@@ -229,11 +229,16 @@ class Counter(object):
     def __init__(self, value=0):
         # RawValue because we don't need it to create a Lock:
         self.val = RawValue('i', value)
+        self._val = value
         self.lock = Lock()
 
     def inc(self):
         with self.lock:
             self.val.value += 1
+
+    def reset(self):
+        with self.lock:
+            self.val.value = self._val
 
     def value(self):
         with self.lock:
