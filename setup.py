@@ -33,7 +33,7 @@ setup(
         "urllib3>=1.22,<2",
         "google-auth>=1.5.0,<1.6",
         "pytz>=2018.5",
-        "aioredis @ https://github.com/aio-libs/aioredis",
+        "aioredis @ git+git://github.com/aio-libs/aioredis.git#egg=aioredis",
         "asgiref>=2.3.2,<2.4"
     ]
 )
